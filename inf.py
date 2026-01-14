@@ -136,6 +136,6 @@ def recommend_jobs(user_description, user_skills, user_category, user_title,
     # Build recommendations DataFrame using iloc (positional indexing)
     recommendations = df.iloc[top_original_positions][['job_title', 'category', 'job_description']].copy()
     recommendations['similarity_score'] = similarities[top_local_indices]
-    recommendations['job_description'] = recommendations['job_description'].str[:200] + '...'
+    recommendations['job_description'] = recommendations['job_description']
     
     return recommendations
