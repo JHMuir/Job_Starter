@@ -1,12 +1,15 @@
 import streamlit as st
 import pandas as pd
 import os
+import re
 
 # Import our model and inference functions
 from model import data_preprocess, train_autoencoder, generate_job_embeddings, save_model
 from inf import load_model, recommend_jobs
 
-
+if 'expanded_jobs' not in st.session_state:
+    st.session_state.expanded_jobs = set()
+    
 # =============================================================================
 # CACHED MODEL LOADING
 # =============================================================================
@@ -61,7 +64,6 @@ def get_common_skills(_encoders):
     """
     return sorted(_encoders['skills'].classes_.tolist())
 
-
 def truncate_text(text, max_length=300):
     """Truncate text to max_length with ellipsis."""
     if len(text) <= max_length:
@@ -69,6 +71,22 @@ def truncate_text(text, max_length=300):
     return text[:max_length].rsplit(' ', 1)[0] + "..."
 
 
+def capitalize_sentences(text):
+    """Capitalize the first letter of each sentence."""
+    if not text:
+        return text
+    
+    # Capitalize first character
+    result = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+    
+    # Capitalize letter after sentence-ending punctuation followed by space
+    result = re.sub(
+        r'([.!?]\s*)([a-z])',
+        lambda m: m.group(1) + m.group(2).upper(),
+        result
+    )
+    
+    return result
 # =============================================================================
 # STREAMLIT APP CONFIGURATION
 # =============================================================================
@@ -228,7 +246,7 @@ else:
                 row_jobs = jobs_list[row_start:row_start + 2]
                 cols = st.columns(2)
                 
-                for col_idx, (_, job) in enumerate(row_jobs):
+                for col_idx, (idx, job) in enumerate(row_jobs):
                     with cols[col_idx]:
                         # Use container with border for card-like appearance
                         with st.container(border=True):
@@ -245,10 +263,20 @@ else:
                             # Category badge
                             st.caption(f"{job['category']}")
                             
-                            # Job description in expander
+                            # Job description with toggle
+                            job_key = f"job_{idx}"
+                            
                             with st.expander("View Description"):
-                                st.write(job['job_description'])
-                                st.button("Show More")
+                                if job_key in st.session_state.expanded_jobs:
+                                    st.write(capitalize_sentences(job['job_description'].lower()))
+                                    if st.button("Show Less", key=f"less_{job_key}"):
+                                        st.session_state.expanded_jobs.discard(job_key)
+                                        st.rerun()
+                                else:
+                                    st.write(capitalize_sentences(job['job_description'][:150].lower()))
+                                    if st.button("Show More", key=f"more_{job_key}"):
+                                        st.session_state.expanded_jobs.add(job_key)
+                                        st.rerun()
 
 
 # =============================================================================
